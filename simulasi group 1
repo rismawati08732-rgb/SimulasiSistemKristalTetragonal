@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulasi Sistem Kristal Tetragonal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #03080f;
+    --panel: #070e1a;
+    --border: #1a3a5c;
+    --accent: #00d4ff;
+    --accent2: #0080ff;
+    --accent3: #ff6b00;
+    --glow: rgba(0,212,255,0.15);
+    --text: #c8e6ff;
+    --dim: #4a7fa5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(0,212,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 15%, rgba(0,128,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 80%, rgba(0,212,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 90%, rgba(255,255,255,0.15) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 32px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,212,255,0.05) 0%, transparent 100%);
+  }
+
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1.4rem, 4vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,212,255,0.6), 0 0 60px rgba(0,212,255,0.2);
+  }
+
+  header p {
+    margin-top: 8px;
+    color: var(--dim);
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+  }
+
+  .badge {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 14px;
+    border: 1px solid var(--accent2);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: var(--accent2);
+    letter-spacing: 0.15em;
+    font-family: 'Orbitron', monospace;
+  }
+
+  .layout {
+    position: relative;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    height: calc(100vh - 130px);
+  }
+
+  .canvas-area {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  canvas#crystalCanvas {
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 4px;
+    background: radial-gradient(ellipse at center, #040d1a 0%, #020610 100%);
+    cursor: grab;
+    box-shadow: 0 0 40px rgba(0,212,255,0.08), inset 0 0 60px rgba(0,0,0,0.5);
+    max-width: 100%;
+    touch-action: none;
+  }
+
+  canvas#crystalCanvas:active { cursor: grabbing; }
+
+  .canvas-label {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    color: var(--dim);
+    letter-spacing: 0.12em;
+    font-family: 'Orbitron', monospace;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+    background: var(--panel);
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .panel {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    opacity: 0.8;
+  }
+
+  .slider-group { margin-bottom: 14px; }
+
+  .slider-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .slider-label { font-size: 0.85rem; color: var(--text); letter-spacing: 0.05em; }
+
+  .slider-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,212,255,0.6);
+  }
+
+  .btn-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn {
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.05);
+    box-shadow: 0 0 12px rgba(0,212,255,0.1);
+  }
+
+  .btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.1);
+  }
+
+  .btn-icon { font-size: 1rem; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .info-card {
+    background: rgba(0,212,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 12px;
+  }
+
+  .info-card .k { font-size: 0.72rem; color: var(--dim); letter-spacing: 0.08em; }
+  .info-card .v {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-top: 3px;
+  }
+
+  .mineral-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .mineral-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mineral-item:hover, .mineral-item.active {
+    border-color: var(--accent3);
+    background: rgba(255,107,0,0.06);
+  }
+
+  .mineral-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .mineral-name { font-size: 0.85rem; }
+  .mineral-formula { font-size: 0.72rem; color: var(--dim); }
+
+  .axes-legend { display: flex; flex-direction: column; gap: 6px; }
+
+  .axis-row { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
+
+  .axis-line {
+    width: 30px; height: 2px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .toggle-label { font-size: 0.85rem; }
+
+  .toggle {
+    position: relative;
+    width: 36px; height: 18px;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 18px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    left: 3px; top: 3px;
+    background: var(--dim);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  input:checked + .toggle-slider { background: rgba(0,212,255,0.3); }
+  input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+    background: var(--accent);
+  }
+
+  .prop-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .prop-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(26,58,92,0.5);
+    font-size: 0.82rem;
+  }
+
+  .prop-item .pk { color: var(--dim); }
+  .prop-item .pv { color: var(--text); font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .layout {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .sidebar { border-right: none; border-top: 1px solid var(--border); }
+    canvas#crystalCanvas { width: 100% !important; height: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ SISTEM KRISTAL TETRAGONAL</h1>
+  <p>Simulasi Interaktif Struktur Kristalografi</p>
+  <span class="badge">DRAG · ROTATE · EXPLORE</span>
+</header>
+
+<div class="layout">
+  <div class="canvas-area">
+    <canvas id="crystalCanvas" width="640" height="520"></canvas>
+    <div class="canvas-label">KLIK & SERET UNTUK MEMUTAR • SCROLL UNTUK ZOOM</div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="panel">
+      <div class="panel-title">PARAMETER UNIT SEL</div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Panjang a = b</span>
+          <span class="slider-val" id="val-a">1.00</span>
+        </div>
+        <input type="range" id="sl-a" min="60" max="140" value="100">
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Panjang c</span>
+          <span class="slider-val" id="val-c">1.60</span>
+        </div>
+        <input type="range" id="sl-c" min="60" max="220" value="160">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">PENGATURAN TAMPILAN</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Sumbu Kristalografi</span>
+        <label class="toggle"><input type="checkbox" id="tog-axes" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Label Titik Atom</span>
+        <label class="toggle"><input type="checkbox" id="tog-labels" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Bidang Kristal</span>
+        <label class="toggle"><input type="checkbox" id="tog-planes"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Rotasi Otomatis</span>
+        <label class="toggle"><input type="checkbox" id="tog-auto" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">MODE RENDER</div>
+      <div class="btn-group">
+        <button class="btn active" id="btn-wireframe"><span class="btn-icon">⬡</span> Wireframe</button>
+        <button class="btn" id="btn-solid"><span class="btn-icon">◼</span> Solid + Atom</button>
+        <button class="btn" id="btn-spacefill"><span class="btn-icon">●</span> Space Fill</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">CONTOH MINERAL</div>
+      <div class="mineral-list">
+        <div class="mineral-item active" data-a="100" data-c="160" data-name="Zirkon">
+          <div class="mineral-dot" style="background:#00d4ff"></div>
+          <div>
+            <div class="mineral-name">Zirkon</div>
+            <div class="mineral-formula">ZrSiO₄</div>
+          </div>
+        </div>
+        <div class="mineral-item" data-a="90" data-c="200" data-name="Rutil">
+          <div class="mineral-dot" style="background:#ff6b00"></div>
+          <div>
+            <div class="mineral-name">Rutil</div>
+            <div class="mineral-formula">TiO₂</div>
+          </div>
+        </div>
+        <div class="mineral-item" data-a="110" data-c="145" data-name="Kasiterit">
+          <div class="mineral-dot" style="background:#a0ff60"></div>
+          <div>
+            <div class="mineral-name">Kasiterit</div>
+            <div class="mineral-formula">SnO₂</div>
+          </div>
+        </div>
+        <div class="mineral-item" data-a="95" data-c="130" data-name="Indium">
+          <div class="mineral-dot" style="background:#ff60c0"></div>
+          <div>
+            <div class="mineral-name">Indium</div>
+            <div class="mineral-formula">In (metal)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">INFORMASI KRISTAL</div>
+      <div class="info-grid">
+        <div class="info-card"><div class="k">SISTEM</div><div class="v">Tetragonal</div></div>
+        <div class="info-card"><div class="k">KELAS</div><div class="v">4/mmm</div></div>
+        <div class="info-card"><div class="k">a = b</div><div class="v" id="info-a">1.00 Å</div></div>
+        <div class="info-card"><div class="k">c ≠ a</div><div class="v" id="info-c">1.60 Å</div></div>
+        <div class="info-card"><div class="k">α = β = γ</div><div class="v">90°</div></div>
+        <div class="info-card"><div class="k">BRAVAIS</div><div class="v">P & I</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">SIFAT SISTEM</div>
+      <div class="prop-list">
+        <div class="prop-item"><span class="pk">Sumbu simetri</span><span class="pv">1 sumbu-4</span></div>
+        <div class="prop-item"><span class="pk">Sumbu 2-lipat</span><span class="pv">4 sumbu</span></div>
+        <div class="prop-item"><span class="pk">Bidang cermin</span><span class="pv">5 bidang</span></div>
+        <div class="prop-item"><span class="pk">Pusat inversi</span><span class="pv">Ada</span></div>
+        <div class="prop-item"><span class="pk">Kisi Bravais</span><span class="pv">Primitif (P) & Body-center (I)</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">LEGENDA SUMBU</div>
+      <div class="axes-legend">
+        <div class="axis-row"><div class="axis-line" style="background:#ff4444"></div><span>Sumbu <b>a</b> (X)</span></div>
+        <div class="axis-row"><div class="axis-line" style="background:#44ff88"></div><span>Sumbu <b>b</b> (Y)</span></div>
+        <div class="axis-row"><div class="axis-line" style="background:#4488ff"></div><span>Sumbu <b>c</b> (Z) — unik</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const state = {
+  a: 100, c: 160,
+  rotX: 0.45, rotY: 0.6,
+  autoRotate: true,
+  showAxes: true,
+  showLabels: true,
+  showPlanes: false,
+  renderMode: 'wireframe',
+  dragging: false,
+  lastX: 0, lastY: 0,
+  zoom: 1
+};
+
+const canvas = document.getElementById('crystalCanvas');
+const ctx = canvas.getContext('2d');
+
+function rotateY(p, a) {
+  const cos = Math.cos(a), sin = Math.sin(a);
+  return { x: p.x*cos + p.z*sin, y: p.y, z: -p.x*sin + p.z*cos };
+}
+function rotateX(p, a) {
+  const cos = Math.cos(a), sin = Math.sin(a);
+  return { x: p.x, y: p.y*cos - p.z*sin, z: p.y*sin + p.z*cos };
+}
+function project(p, cx, cy) {
+  const fov = 600 * state.zoom;
+  const z = p.z + 500;
+  const scale = fov / z;
+  return { x: cx + p.x * scale, y: cy + p.y * scale, scale };
+}
+
+function getVertices() {
+  const a = state.a, c = state.c;
+  const ha = a/2, hc = c/2;
+  return [
+    {x:-ha, y: hc, z:-ha, label:'(0,0,0)'},
+    {x: ha, y: hc, z:-ha, label:'(1,0,0)'},
+    {x: ha, y: hc, z: ha, label:'(1,1,0)'},
+    {x:-ha, y: hc, z: ha, label:'(0,1,0)'},
+    {x:-ha, y:-hc, z:-ha, label:'(0,0,1)'},
+    {x: ha, y:-hc, z:-ha, label:'(1,0,1)'},
+    {x: ha, y:-hc, z: ha, label:'(1,1,1)'},
+    {x:-ha, y:-hc, z: ha, label:'(0,1,1)'},
+    {x:  0, y:  0, z:  0, label:'(½,½,½)', isCenter: true},
+  ];
+}
+
+const edges = [
+  [0,1],[1,2],[2,3],[3,0],
+  [4,5],[5,6],[6,7],[7,4],
+  [0,4],[1,5],[2,6],[3,7],
+];
+
+const faces = [
+  [0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[1,2,6,5],[0,3,7,4],
+];
+
+function transformVerts(verts, cx, cy) {
+  return verts.map(v => {
+    let p = { x: v.x, y: v.y, z: v.z };
+    p = rotateY(p, state.rotY);
+    p = rotateX(p, state.rotX);
+    const proj = project(p, cx, cy);
+    return { ...v, px: proj.x, py: proj.y, pz: p.z, scale: proj.scale };
+  });
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  ctx.clearRect(0, 0, W, H);
+
+  const verts = getVertices();
+  const tv = transformVerts(verts, cx, cy);
+
+  const facesWithDepth = faces.map(f => ({
+    indices: f,
+    depth: f.reduce((s, i) => s + tv[i].pz, 0) / f.length
+  })).sort((a, b) => a.depth - b.depth);
+
+  if (state.showPlanes) {
+    ctx.save();
+    facesWithDepth.forEach(({indices}) => {
+      ctx.beginPath();
+      indices.forEach((i, k) => k === 0 ? ctx.moveTo(tv[i].px, tv[i].py) : ctx.lineTo(tv[i].px, tv[i].py));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,212,255,0.04)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,212,255,0.15)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  if (state.renderMode === 'solid') {
+    facesWithDepth.forEach(({indices, depth}) => {
+      const light = Math.max(0.3, Math.min(1, 0.7 - depth/600));
+      ctx.beginPath();
+      indices.forEach((i, k) => k === 0 ? ctx.moveTo(tv[i].px, tv[i].py) : ctx.lineTo(tv[i].px, tv[i].py));
+      ctx.closePath();
+      ctx.fillStyle = `rgba(0,${Math.round(80*light)},${Math.round(140*light)},0.35)`;
+      ctx.fill();
+    });
+  }
+
+  if (state.renderMode !== 'spacefill') {
+    edges.forEach(([a, b]) => {
+      const ta = tv[a], tb = tv[b];
+      const avgZ = (ta.pz + tb.pz) / 2;
+      const t = Math.max(0, Math.min(1, 1 - avgZ/500));
+      const alpha = 0.4 + t * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(ta.px, ta.py);
+      ctx.lineTo(tb.px, tb.py);
+      if (state.renderMode === 'solid') {
+        ctx.strokeStyle = `rgba(0,212,255,${alpha})`;
+        ctx.lineWidth = 1.2;
+      } else {
+        const grad = ctx.createLinearGradient(ta.px, ta.py, tb.px, tb.py);
+        grad.addColorStop(0, `rgba(0,212,255,${alpha})`);
+        grad.addColorStop(1, `rgba(0,128,255,${alpha})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.5;
+      }
+      ctx.stroke();
+    });
+  }
+
+  const atomOrder = [...tv.keys()].sort((a, b) => tv[a].pz - tv[b].pz);
+
+  atomOrder.forEach(i => {
+    const v = tv[i];
+    if (i === 8) return;
+    const r = v.scale * (state.renderMode === 'spacefill' ? state.a * 0.22 : 6);
+    const grd = ctx.createRadialGradient(v.px - r*0.3, v.py - r*0.3, r*0.1, v.px, v.py, r);
+    if (state.renderMode === 'spacefill') {
+      grd.addColorStop(0, '#80eeff');
+      grd.addColorStop(0.4, '#00a0cc');
+      grd.addColorStop(1, '#003344');
+    } else {
+      grd.addColorStop(0, '#ffffff');
+      grd.addColorStop(0.4, '#00d4ff');
+      grd.addColorStop(1, '#003355');
+    }
+    ctx.beginPath();
+    ctx.arc(v.px, v.py, r, 0, Math.PI*2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+    if (state.renderMode !== 'spacefill') {
+      ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  });
+
+  const vc = tv[8];
+  const drawAtoms = state.renderMode === 'solid' || state.renderMode === 'spacefill';
+  if (drawAtoms || state.renderMode === 'wireframe') {
+    const r = vc.scale * (state.renderMode === 'spacefill' ? state.a * 0.22 : 5.5);
+    const grd2 = ctx.createRadialGradient(vc.px - r*0.3, vc.py - r*0.3, r*0.1, vc.px, vc.py, r);
+    grd2.addColorStop(0, '#fff0a0');
+    grd2.addColorStop(0.4, '#ff9900');
+    grd2.addColorStop(1, '#331500');
+    ctx.beginPath();
+    ctx.arc(vc.px, vc.py, state.renderMode === 'spacefill' ? r : 5, 0, Math.PI*2);
+    ctx.fillStyle = grd2;
+    ctx.fill();
+    if (state.renderMode !== 'spacefill') {
+      ctx.strokeStyle = 'rgba(255,150,0,0.8)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  if (state.showLabels && state.renderMode !== 'spacefill') {
+    ctx.font = '10px Orbitron, monospace';
+    ctx.textAlign = 'center';
+    tv.forEach((v, i) => {
+      if (i === 8) return;
+      ctx.fillStyle = 'rgba(0,212,255,0.7)';
+      ctx.fillText(v.label, v.px, v.py - 14);
+    });
+    ctx.fillStyle = 'rgba(255,150,0,0.8)';
+    ctx.fillText(tv[8].label, tv[8].px + 16, tv[8].py);
+  }
+
+  if (state.showAxes) {
+    const axLen = state.a * 1.6;
+    const axOrigin = { x: 0, y: 0, z: 0 };
+    const axDefs = [
+      { v: {x: axLen, y:0, z:0}, color:'#ff4444', label:'a' },
+      { v: {x:0, y:0, z: axLen}, color:'#44ff88', label:'b' },
+      { v: {x:0, y:-axLen, z:0}, color:'#4488ff', label:'c' },
+    ];
+    const tf = (p) => {
+      let q = rotateY(p, state.rotY);
+      q = rotateX(q, state.rotX);
+      return project(q, cx, cy);
+    };
+    const o = tf(axOrigin);
+    axDefs.forEach(ax => {
+      const ep = tf(ax.v);
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(ep.x, ep.y);
+      ctx.strokeStyle = ax.color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const dx = ep.x - o.x, dy = ep.y - o.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      const nx = dx/len, ny = dy/len;
+      ctx.beginPath();
+      ctx.moveTo(ep.x, ep.y);
+      ctx.lineTo(ep.x - nx*10 + ny*5, ep.y - ny*10 - nx*5);
+      ctx.lineTo(ep.x - nx*10 - ny*5, ep.y - ny*10 + nx*5);
+      ctx.closePath();
+      ctx.fillStyle = ax.color;
+      ctx.fill();
+      ctx.font = 'bold 13px Orbitron, monospace';
+      ctx.fillStyle = ax.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(ax.label, ep.x + nx*14, ep.y + ny*14);
+    });
+  }
+
+  if (state.renderMode === 'wireframe') {
+    ctx.font = '11px Rajdhani, sans-serif';
+    ctx.fillStyle = 'rgba(0,212,255,0.5)';
+    ctx.textAlign = 'center';
+    const e0 = tv[0], e1 = tv[1];
+    ctx.fillText(`a = ${(state.a/100).toFixed(2)} Å`, (e0.px + e1.px)/2, (e0.py + e1.py)/2 + 14);
+    const e5 = tv[5], e1b = tv[1];
+    ctx.fillText(`c = ${(state.c/100).toFixed(2)} Å`, (e5.px + e1b.px)/2 + 18, (e5.py + e1b.py)/2);
+  }
+}
+
+let lastTime = 0;
+function loop(ts) {
+  const dt = (ts - lastTime) / 1000;
+  lastTime = ts;
+  if (state.autoRotate && !state.dragging) state.rotY += 0.4 * dt;
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+canvas.addEventListener('mousedown', e => { state.dragging = true; state.lastX = e.clientX; state.lastY = e.clientY; });
+window.addEventListener('mouseup', () => state.dragging = false);
+window.addEventListener('mousemove', e => {
+  if (!state.dragging) return;
+  state.rotY += (e.clientX - state.lastX) * 0.01;
+  state.rotX += (e.clientY - state.lastY) * 0.01;
+  state.lastX = e.clientX; state.lastY = e.clientY;
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  state.zoom *= e.deltaY > 0 ? 0.93 : 1.07;
+  state.zoom = Math.max(0.4, Math.min(2.5, state.zoom));
+}, { passive: false });
+
+let lastTouch = null;
+canvas.addEventListener('touchstart', e => { state.dragging = true; lastTouch = e.touches[0]; }, { passive: true });
+canvas.addEventListener('touchend', () => state.dragging = false);
+canvas.addEventListener('touchmove', e => {
+  if (!state.dragging || !lastTouch) return;
+  const t = e.touches[0];
+  state.rotY += (t.clientX - lastTouch.clientX) * 0.012;
+  state.rotX += (t.clientY - lastTouch.clientY) * 0.012;
+  lastTouch = t;
+}, { passive: true });
+
+function updateInfo() {
+  document.getElementById('info-a').textContent = (state.a/100).toFixed(2) + ' Å';
+  document.getElementById('info-c').textContent = (state.c/100).toFixed(2) + ' Å';
+  document.getElementById('val-a').textContent = (state.a/100).toFixed(2);
+  document.getElementById('val-c').textContent = (state.c/100).toFixed(2);
+}
+
+document.getElementById('sl-a').addEventListener('input', function() { state.a = +this.value; updateInfo(); });
+document.getElementById('sl-c').addEventListener('input', function() { state.c = +this.value; updateInfo(); });
+document.getElementById('tog-axes').addEventListener('change', function() { state.showAxes = this.checked; });
+document.getElementById('tog-labels').addEventListener('change', function() { state.showLabels = this.checked; });
+document.getElementById('tog-planes').addEventListener('change', function() { state.showPlanes = this.checked; });
+document.getElementById('tog-auto').addEventListener('change', function() { state.autoRotate = this.checked; });
+
+['wireframe','solid','spacefill'].forEach(m => {
+  document.getElementById('btn-'+m).addEventListener('click', function() {
+    state.renderMode = m;
+    ['wireframe','solid','spacefill'].forEach(b => document.getElementById('btn-'+b).classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.mineral-item').forEach(el => {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.mineral-item').forEach(e => e.classList.remove('active'));
+    this.classList.add('active');
+    state.a = +this.dataset.a;
+    state.c = +this.dataset.c;
+    document.getElementById('sl-a').value = state.a;
+    document.getElementById('sl-c').value = state.c;
+    updateInfo();
+  });
+});
+
+function resizeCanvas() {
+  const area = document.querySelector('.canvas-area');
+  canvas.width = Math.max(300, Math.min(area.clientWidth - 40, 700));
+  canvas.height = Math.max(250, Math.min(area.clientHeight - 60, 560));
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+updateInfo();
+</script>
+</body>
+</html>
